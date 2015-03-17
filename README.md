@@ -23,7 +23,8 @@ This library shares a part of its configuration with the MetricsPlugin (in the c
 metrics {
     name = metrics-repository-name
     enabled = true
-}```
+}
+```
 
 It also has its own configuration at a location given by overriding `microserviceMetricsConfig`
 
@@ -35,4 +36,5 @@ metrics {
         prefix = appMetricsPrefix
         enabled = true
     }
-}```
+}
+```
