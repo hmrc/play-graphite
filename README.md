@@ -1,5 +1,6 @@
 play-graphite
 =============
+[ ![Download](https://api.bintray.com/packages/hmrc/releases/play-graphite/images/download.svg) ](https://bintray.com/hmrc/releases/play-graphite/_latestVersion)
 
 A library that can hook to a Play Global object to start the Graphite reporter.
 
