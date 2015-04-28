@@ -41,6 +41,10 @@ trait GraphiteConfig extends GlobalSettings {
     }
   }
 
+  override def onStop(app: Application) {
+    super.onStop(app)
+  }
+
   private def enabled(app: Application) : Boolean =  app.configuration.getBoolean("metrics.enabled").getOrElse(false) &&
       metricsConfig(app).getBoolean("graphite.enabled").getOrElse(false)
 
