@@ -24,7 +24,7 @@ object HmrcBuild extends Build {
   import uk.gov.hmrc.{SbtBuildInfo, ShellPrompt}
 
   val appName = "play-graphite"
-  val appVersion = "1.1.0"
+  val appVersion = "1.2.0-SNAPSHOT"
 
   lazy val microservice = Project(appName, file("."))
     .settings(version := appVersion)
