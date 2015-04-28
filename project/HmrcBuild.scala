@@ -56,7 +56,8 @@ private object AppDependencies {
 
   val compile = Seq(
     "com.typesafe.play" %% "play" % PlayVersion.current,
-    "com.codahale.metrics" % "metrics-graphite" % "3.0.2"
+    "com.codahale.metrics" % "metrics-graphite" % "3.0.2",
+    "com.kenshoo" %% "metrics-play" % "2.3.0_0.1.8"
   )
 
   trait TestDependencies {
