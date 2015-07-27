@@ -19,7 +19,6 @@ package uk.gov.hmrc.play.graphite
 
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit._
-
 import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.codahale.metrics.{MetricFilter, SharedMetricRegistries}
 import play.api.{Application, Configuration, GlobalSettings, Logger}
@@ -27,10 +26,6 @@ import play.api.{Application, Configuration, GlobalSettings, Logger}
 trait GraphiteConfig extends GlobalSettings {
 
   def microserviceMetricsConfig(implicit app: Application) : Option[Configuration]
-
-  private def metricsConfig(implicit app: Application) = microserviceMetricsConfig
-    .getOrElse(app.configuration.getConfig(s"Dev.microservice.metrics")
-    .getOrElse(throw new Exception("The application does not contain required metrics configuration")))
 
   override def onStart(app: Application) {
 
@@ -45,13 +40,18 @@ trait GraphiteConfig extends GlobalSettings {
     super.onStop(app)
   }
 
-  private def enabled(app: Application) : Boolean =  app.configuration.getBoolean("metrics.enabled").getOrElse(false) &&
-      metricsConfig(app).getBoolean("graphite.enabled").getOrElse(false)
+  private def enabled(app: Application) : Boolean = metricsPluginEnabled(app) && graphitePublisherEnabled(app)
+
+  private def metricsPluginEnabled(app: Application) : Boolean =  app.configuration.getBoolean("metrics.enabled").getOrElse(false)
+
+  private def graphitePublisherEnabled(app: Application) : Boolean =  microserviceMetricsConfig(app).flatMap(_.getBoolean("graphite.enabled")).getOrElse(false)
 
   private def registryName(app: Application) = app.configuration.getString("metrics.name").getOrElse("default")
 
   private def startGraphite(implicit app: Application) {
     Logger.info("Graphite metrics enabled, starting the reporter")
+
+    val metricsConfig = microserviceMetricsConfig.getOrElse(throw new Exception("The application does not contain required metrics configuration"))
 
     val graphite = new Graphite(new InetSocketAddress(
       metricsConfig.getString("graphite.host").getOrElse("graphite"),

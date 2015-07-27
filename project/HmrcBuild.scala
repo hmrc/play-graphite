@@ -22,8 +22,6 @@ import uk.gov.hmrc.versioning.SbtGitVersioning
 object HmrcBuild extends Build {
 
   import uk.gov.hmrc.DefaultBuildSettings._
-  import uk.gov.hmrc.PublishingSettings._
-  import uk.gov.hmrc.{SbtBuildInfo, ShellPrompt}
 
   val appName = "play-graphite"
 
@@ -32,10 +30,10 @@ object HmrcBuild extends Build {
     .settings(
       targetJvm := "jvm-1.7",
       libraryDependencies ++= AppDependencies(),
-      crossScalaVersions := Seq("2.11.6"),
+      crossScalaVersions := Seq("2.11.7"),
       resolvers := Seq(
         Resolver.bintrayRepo("hmrc", "releases"),
-        "typesafe-releases" at "http://repo.typesafe.com/typesafe/releases/"
+        Resolver.typesafeRepo("releases")
       )
     )
     .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
