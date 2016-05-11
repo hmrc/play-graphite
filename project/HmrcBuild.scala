@@ -33,7 +33,8 @@ object HmrcBuild extends Build {
       crossScalaVersions := Seq("2.11.7"),
       resolvers := Seq(
         Resolver.bintrayRepo("hmrc", "releases"),
-        Resolver.typesafeRepo("releases")
+        Resolver.typesafeRepo("releases"),
+        Resolver.jcenterRepo
       )
     )
     .disablePlugins(sbt.plugins.JUnitXmlReportPlugin)
@@ -47,7 +48,7 @@ private object AppDependencies {
   val compile = Seq(
     "com.typesafe.play" %% "play" % PlayVersion.current,
     "com.codahale.metrics" % "metrics-graphite" % "3.0.2",
-    "com.kenshoo" %% "metrics-play" % "2.3.0_0.1.8"
+    "de.threedimensions" %% "metrics-play" % "2.5.13"
   )
 
   trait TestDependencies {
