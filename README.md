@@ -4,7 +4,7 @@ play-graphite
 
 A library that can hook to a Play Global object to start the Graphite reporter.
 
-For this to work, we also need to use the `GraphiteMetricsPlugin` which actually sends the metrics data to a MetricsRepository. The GraphiteReporter then picks it up from there and sends the data to the Graphite server.
+For this to work, we also need to use the `GraphiteMetricsModule` which actually sends the metrics data to a MetricsRepository. The GraphiteReporter then picks it up from there and sends the data to the Graphite server.
 
 ## Adding to your service
 
