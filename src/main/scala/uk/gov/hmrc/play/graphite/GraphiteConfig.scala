@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.codahale.metrics.{MetricFilter, SharedMetricRegistries}
 import play.api.{Application, Configuration, GlobalSettings, Logger}
 
+@deprecated("Use DI", "-")
 trait GraphiteConfig extends GlobalSettings {
 
   def microserviceMetricsConfig(implicit app: Application) : Option[Configuration]

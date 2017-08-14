@@ -1,0 +1,95 @@
+/*
+ * Copyright 2017 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package uk.gov.hmrc.play.graphite
+
+import java.util.concurrent.TimeUnit
+
+import com.typesafe.config.ConfigException
+import org.scalatest.{MustMatchers, WordSpec}
+import play.api.Configuration
+import play.api.inject.guice.GuiceApplicationBuilder
+
+class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
+
+  "GraphiteReporterProviderConfig.fromConfig" must {
+
+    "return a valid `GraphiteReporterProviderConfig` when given a prefix" in {
+
+      val injector = new GuiceApplicationBuilder()
+        .configure(
+          "appName" -> "testApp",
+          "metrics.graphite.prefix" -> "test"
+        )
+        .build()
+        .injector
+
+      val config: GraphiteReporterProviderConfig =
+        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+
+      config.prefix mustEqual "test"
+      config.rates mustBe None
+      config.durations mustBe None
+    }
+
+    "return a valid `GraphiteReporterProviderConfig` when given a prefix and optional config" in {
+
+      val injector = new GuiceApplicationBuilder()
+        .configure(
+          "metrics.graphite.prefix" -> "test",
+          "metrics.graphite.durations" -> "SECONDS",
+          "metrics.graphite.rates" -> "SECONDS"
+        )
+        .build()
+        .injector
+
+      val config: GraphiteReporterProviderConfig =
+        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+
+      config.prefix mustEqual "test"
+      config.rates mustBe Some(TimeUnit.SECONDS)
+      config.durations mustBe Some(TimeUnit.SECONDS)
+    }
+
+    "return a valid `GraphiteReporterProviderConfig` when given an appName" in {
+
+      val injector = new GuiceApplicationBuilder()
+        .configure("appName" -> "testApp")
+        .build()
+        .injector
+
+      val config: GraphiteReporterProviderConfig =
+        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+
+      config.prefix mustEqual "tax.testApp"
+      config.rates mustBe None
+      config.durations mustBe None
+    }
+
+    "throw a configuration exception when relevant keys are missing" in {
+
+      val injector = new GuiceApplicationBuilder()
+        .build()
+        .injector
+
+      val exception = intercept[ConfigException.Generic] {
+        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+      }
+
+      exception.getMessage mustEqual "`metrics.graphite.prefix` in config or `appName` as parameter required"
+    }
+  }
+}
