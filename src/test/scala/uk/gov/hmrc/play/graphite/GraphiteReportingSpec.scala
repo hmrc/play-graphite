@@ -64,21 +64,5 @@ class GraphiteReportingSpec extends WordSpec with MustMatchers with MockitoSugar
       }
       verify(graphite).stop()
     }
-
-    "not start the reporter when metrics are disabled" ignore {
-
-      Helpers.running(app.configure("metrics.enabled" -> "false").build()) {
-        verify(graphite, never()).start(any(), any())
-      }
-      verify(graphite, never()).stop()
-    }
-
-    "not start the reporter when graphite is disabled" ignore {
-
-      Helpers.running(app.configure("metrics.graphite.enabled" -> "false").build()) {
-        verify(graphite, never()).start(any(), any())
-      }
-      verify(graphite, never()).stop()
-    }
   }
 }
