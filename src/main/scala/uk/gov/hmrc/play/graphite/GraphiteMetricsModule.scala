@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,24 @@
 
 package uk.gov.hmrc.play.graphite
 
-import javax.inject.{Inject, Singleton}
-
+import com.codahale.metrics.MetricFilter
+import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.kenshoo.play.metrics._
+import play.api.inject.{Binding, Module}
 import play.api.{Configuration, Environment}
-import play.api.inject.{ApplicationLifecycle, Module}
 
-class GraphiteMetricsModule extends Module  {
-  def bindings(environment: Environment, configuration: Configuration) = {
+class GraphiteMetricsModule extends Module {
+
+  override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
+
+    if (configuration.getBoolean("metrics.graphite.legacy").getOrElse(true)) {
+      legacy(environment, configuration)
+    } else {
+      newBindings(environment, configuration)
+    }
+  }
+
+  private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
     if (configuration.getBoolean("metrics.enabled").getOrElse(true)) {
       Seq(
         bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
@@ -36,9 +46,36 @@ class GraphiteMetricsModule extends Module  {
       )
     }
   }
-}
 
-@Singleton
-class GraphiteMetricsImpl @Inject() (lifecycle: ApplicationLifecycle, configuration: Configuration) extends MetricsImpl(lifecycle, configuration) {
-  override def onStop() = {}
+  private def newBindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
+
+    val metricsEnabled: Boolean = configuration.getBoolean("metrics.enabled").getOrElse(true)
+
+    val defaultBindings: Seq[Binding[_]] = Seq(
+      // Note: `MetricFilter` rather than `MetricsFilter`
+      bind[MetricFilter].toInstance(MetricFilter.ALL).eagerly
+    )
+
+    val metricsBindings: Seq[Binding[_]] =
+      if (metricsEnabled) {
+        Seq(
+          bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
+          bind[Metrics].to[MetricsImpl].eagerly,
+
+          bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(configuration)),
+          bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration)),
+          bind[Graphite].toProvider[GraphiteProvider],
+          bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
+          bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
+        )
+      } else {
+        Seq(
+          bind[MetricsFilter].to[DisabledMetricsFilter].eagerly,
+          bind[Metrics].to[DisabledMetrics].eagerly,
+          bind[GraphiteReporting].to[DisabledGraphiteReporting].eagerly
+        )
+      }
+
+    defaultBindings ++ metricsBindings
+  }
 }
