@@ -26,15 +26,18 @@ class GraphiteMetricsModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
 
-    if (configuration.getBoolean("metrics.graphite.legacy").getOrElse(true)) {
-      legacy(environment, configuration)
+    val metricsConfiguration = configuration.getConfig(s"${environment.mode.toString}.metrics")
+      .orElse(configuration.getConfig("metrics")).getOrElse(Configuration())
+
+    if (metricsConfiguration.getBoolean("graphite.legacy").getOrElse(true)) {
+      legacy(environment, metricsConfiguration)
     } else {
-      newBindings(environment, configuration)
+      newBindings(environment, configuration, metricsConfiguration)
     }
   }
 
-  private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-    if (configuration.getBoolean("metrics.enabled").getOrElse(true)) {
+  private def legacy(environment: Environment, metricsConfiguration: Configuration): Seq[Binding[_]] = {
+    if (metricsConfiguration.getBoolean("enabled").getOrElse(true)) {
       Seq(
         bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
         bind[Metrics].to[GraphiteMetricsImpl].eagerly
@@ -47,9 +50,9 @@ class GraphiteMetricsModule extends Module {
     }
   }
 
-  private def newBindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
+  private def newBindings(environment: Environment, rootConfiguration: Configuration, metricsConfiguration: Configuration): Seq[Binding[_]] = {
 
-    val metricsEnabled: Boolean = configuration.getBoolean("metrics.enabled").getOrElse(true)
+    val metricsEnabled: Boolean = metricsConfiguration.getBoolean("enabled").getOrElse(true)
 
     val defaultBindings: Seq[Binding[_]] = Seq(
       // Note: `MetricFilter` rather than `MetricsFilter`
@@ -62,8 +65,8 @@ class GraphiteMetricsModule extends Module {
           bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
           bind[Metrics].to[MetricsImpl].eagerly,
 
-          bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(configuration)),
-          bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration)),
+          bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(metricsConfiguration)),
+          bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(rootConfiguration, metricsConfiguration)),
           bind[Graphite].toProvider[GraphiteProvider],
           bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
           bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
