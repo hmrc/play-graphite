@@ -26,8 +26,8 @@ class GraphiteMetricsModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
 
-    val metricsConfiguration = configuration.getConfig(s"${environment.mode.toString}.metrics")
-      .orElse(configuration.getConfig("metrics")).getOrElse(Configuration())
+    val metricsConfiguration = configuration.getConfig(s"${environment.mode.toString}.microservice.metrics")
+      .orElse(configuration.getConfig("microservice.metrics")).getOrElse(Configuration())
 
     if (metricsConfiguration.getBoolean("graphite.legacy").getOrElse(true)) {
       legacy(environment, metricsConfiguration)

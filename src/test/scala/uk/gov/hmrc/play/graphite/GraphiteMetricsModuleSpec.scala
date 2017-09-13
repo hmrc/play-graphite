@@ -24,10 +24,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 
 class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAndAfterEach {
 
-  def app: GuiceApplicationBuilder =
-    new GuiceApplicationBuilder()
-      .bindings(new GraphiteMetricsModule)
-
   override def beforeEach(): Unit = {
     super.beforeEach()
     SharedMetricRegistries.clear()
@@ -35,21 +31,19 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
 
   ".bindings" when {
 
-    "`$env.metrics.graphite.legacy` is true" when {
+    "`$env.microservice.metrics.graphite.legacy` is true" when {
 
-      "`$env.metrics.enabled` is not set" must {
+      "`$env.microservice.metrics.enabled` is not set" must {
         behave like haveLegacyBindings(Configuration())
       }
 
       "`metrics.enabled` is set to true" must {
-        behave like haveLegacyBindings(Configuration("Test.metrics.enabled" -> "true"))
+        behave like haveLegacyBindings(Configuration("Test.microservice.metrics.enabled" -> "true"))
       }
 
       "`metrics.enabled` is set to false" must {
 
-        val injector = app.configure(
-          "Test.metrics.enabled" -> "false"
-        ).build().injector
+        val injector = buildInjectorWithMetrics(Configuration("Test.microservice.metrics.enabled" -> "false"))
 
         "create legacy bindings with reporting disabled" in {
           injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
@@ -61,9 +55,9 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
     "`$env.metrics.graphite.legacy` is false" when {
 
       val graphiteConfiguration = Configuration(
-        "Test.metrics.graphite.legacy" -> "false",
-        "Test.metrics.graphite.host" -> "test",
-        "Test.metrics.graphite.port" -> "9999",
+        "Test.microservice.metrics.graphite.legacy" -> "false",
+        "Test.microservice.metrics.graphite.host" -> "test",
+        "Test.microservice.metrics.graphite.port" -> "9999",
         "appName" -> "test"
       )
 
@@ -72,11 +66,11 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
       }
 
       "`$env.metrics.enabled` is set to true" must {
-        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.metrics.enabled" -> "true"))
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "true"))
       }
 
       "`$env.metrics.enabled` is set to false" must {
-        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.metrics.enabled" -> "false"))
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "false"))
       }
 
     }
@@ -84,9 +78,9 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
     " environment specific configuration is not set but default configuration is provided " when {
 
       val graphiteConfiguration = Configuration(
-        "metrics.graphite.legacy" -> "false",
-        "metrics.graphite.host" -> "test",
-        "metrics.graphite.port" -> "9999",
+        "microservice.metrics.graphite.legacy" -> "false",
+        "microservice.metrics.graphite.host" -> "test",
+        "microservice.metrics.graphite.port" -> "9999",
         "appName" -> "test"
       )
 
@@ -95,21 +89,21 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
       }
 
       "`metrics.enabled` is set to true" must {
-        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("metrics.enabled" -> "true"))
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("microservice.metrics.enabled" -> "true"))
       }
 
       "`metrics.enabled` is set to false" must {
-        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("metrics.enabled" -> "false"))
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("microservice.metrics.enabled" -> "false"))
       }
 
     }
 
     " both environment configuration and default configuration specified" when {
       val graphiteConfiguration = Configuration(
-        "Test.metrics.graphite.legacy" -> "false",
-        "metrics.graphite.legacy" -> "true",
-        "Test.metrics.graphite.host" -> "test",
-        "Test.metrics.graphite.port" -> "9999",
+        "Test.microservice.metrics.graphite.legacy" -> "false",
+        "microservice.metrics.graphite.legacy" -> "true",
+        "Test.microservice.metrics.graphite.host" -> "test",
+        "Test.microservice.metrics.graphite.port" -> "9999",
         "appName" -> "test"
       )
 
@@ -118,11 +112,11 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
       }
 
       "`metrics.enabled` is set to true" must {
-        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.metrics.enabled" -> "true"))
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "true"))
       }
 
       "`metrics.enabled` is set to false" must {
-        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.metrics.enabled" -> "false"))
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "false"))
       }
     }
 
