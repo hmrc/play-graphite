@@ -19,13 +19,10 @@ package uk.gov.hmrc.play.graphite
 import com.codahale.metrics.{MetricFilter, SharedMetricRegistries}
 import com.kenshoo.play.metrics._
 import org.scalatest._
+import play.api.Configuration
 import play.api.inject.guice.GuiceApplicationBuilder
 
 class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAndAfterEach {
-
-  def app: GuiceApplicationBuilder =
-    new GuiceApplicationBuilder()
-      .bindings(new GraphiteMetricsModule)
 
   override def beforeEach(): Unit = {
     super.beforeEach()
@@ -34,93 +31,133 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
 
   ".bindings" when {
 
-    "`metrics.graphite.legacy` is true" must {
+    "`$env.microservice.metrics.graphite.legacy` is true" when {
 
-      def app: GuiceApplicationBuilder =
-        new GuiceApplicationBuilder()
-          .bindings(new GraphiteMetricsModule)
+      "`$env.microservice.metrics.enabled` is not set" must {
+        behave like haveLegacyBindings(Configuration())
+      }
 
-      def defaultBindings(builder: => GuiceApplicationBuilder): Unit = {
+      "`metrics.enabled` is set to true" must {
+        behave like haveLegacyBindings(Configuration("Test.microservice.metrics.enabled" -> "true"))
+      }
 
-        // NOTE: Even though this is being done in the `beforeEach` it doesn't
-        // seem to help with mixed in behaviours, so it must be here too.
-        SharedMetricRegistries.clear()
+      "`metrics.enabled` is set to false" must {
 
-        val injector = builder.build().injector
+        val injector = buildInjectorWithMetrics(Configuration("Test.microservice.metrics.enabled" -> "false"))
 
-        "have default bindings" in {
-
-          injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-          injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
+        "create legacy bindings with reporting disabled" in {
+          injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
+          injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
         }
-      }
-
-      "providing no configuration" must {
-        behave like defaultBindings(app)
-      }
-
-      "setting `metrics.enabled` to true" must {
-        behave like defaultBindings(
-          app.configure("metrics.enabled" -> "true")
-        )
-      }
-
-      "setting `metrics.enabled` to false" must {
-
-        val injector = app.configure(
-          "metrics.enabled" -> "false"
-        ).build().injector
-
-        injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
-        injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
       }
     }
 
-    "`metrics.graphite.legacy` is false" must {
+    "`$env.metrics.graphite.legacy` is false" when {
 
-      def app: GuiceApplicationBuilder =
-        new GuiceApplicationBuilder()
-          .bindings(new GraphiteMetricsModule)
-          .configure(
-            "metrics.graphite.legacy" -> "false",
-            "metrics.graphite.host" -> "test",
-            "metrics.graphite.port" -> "9999",
-            "appName" -> "test"
-          )
+      val graphiteConfiguration = Configuration(
+        "Test.microservice.metrics.graphite.legacy" -> "false",
+        "Test.microservice.metrics.graphite.host" -> "test",
+        "Test.microservice.metrics.graphite.port" -> "9999",
+        "appName" -> "test"
+      )
 
-      def defaultBindings(builder: => GuiceApplicationBuilder): Unit = {
-
-        // NOTE: Even though this is being done in the `beforeEach` it doesn't
-        // seem to help with mixed in behaviours, so it must be here too.
-        SharedMetricRegistries.clear()
-
-        val injector = builder.build().injector
-
-        "have default bindings" in {
-
-          injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
-          injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-          injector.instanceOf[Metrics] mustBe a[MetricsImpl]
-          injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
-        }
+      "`$env.metrics.enabled` is not set" must {
+        behave like haveDefaultBindings(graphiteConfiguration)
       }
 
-      "providing no configuration" must {
-        behave like defaultBindings(app)
+      "`$env.metrics.enabled` is set to true" must {
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "true"))
       }
 
-      "setting `metrics.enabled` to true" must {
-        behave like defaultBindings(
-          app.configure("metrics.enabled" -> "true")
-        )
+      "`$env.metrics.enabled` is set to false" must {
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "false"))
       }
 
-      "setting `metrics.enabled` to false" in {
+    }
 
-        val injector = app.configure(
-          "metrics.enabled" -> "false"
-        ).build().injector
+    " environment specific configuration is not set but default configuration is provided " when {
 
+      val graphiteConfiguration = Configuration(
+        "microservice.metrics.graphite.legacy" -> "false",
+        "microservice.metrics.graphite.host" -> "test",
+        "microservice.metrics.graphite.port" -> "9999",
+        "appName" -> "test"
+      )
+
+      "`metrics.enabled` is not set" must {
+        behave like haveDefaultBindings(graphiteConfiguration)
+      }
+
+      "`metrics.enabled` is set to true" must {
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("microservice.metrics.enabled" -> "true"))
+      }
+
+      "`metrics.enabled` is set to false" must {
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("microservice.metrics.enabled" -> "false"))
+      }
+
+    }
+
+    " both environment configuration and default configuration specified" when {
+      val graphiteConfiguration = Configuration(
+        "Test.microservice.metrics.graphite.legacy" -> "false",
+        "microservice.metrics.graphite.legacy" -> "true",
+        "Test.microservice.metrics.graphite.host" -> "test",
+        "Test.microservice.metrics.graphite.port" -> "9999",
+        "appName" -> "test"
+      )
+
+      "`metrics.enabled` is not set" must {
+        behave like haveDefaultBindings(graphiteConfiguration)
+      }
+
+      "`metrics.enabled` is set to true" must {
+        behave like haveDefaultBindings(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "true"))
+      }
+
+      "`metrics.enabled` is set to false" must {
+        behave like haveDisabledNonLegacyMetrics(graphiteConfiguration ++ Configuration("Test.microservice.metrics.enabled" -> "false"))
+      }
+    }
+
+    def buildInjectorWithMetrics(config : Configuration) = {
+
+      // NOTE: Even though this is being done in the `beforeEach` it doesn't
+      // seem to help with mixed in behaviours, so it must be here too.
+      SharedMetricRegistries.clear()
+
+      new GuiceApplicationBuilder()
+        .bindings(new GraphiteMetricsModule)
+        .configure(config)
+        .build()
+        .injector
+    }
+
+    def haveLegacyBindings(config : Configuration): Unit = {
+      val injector = buildInjectorWithMetrics(config)
+
+      "create legacy bindings" in {
+        injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
+        injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
+      }
+    }
+
+    def haveDefaultBindings(configuration : Configuration): Unit = {
+      val injector = buildInjectorWithMetrics(configuration)
+
+      "create new bindings" in {
+
+        injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
+        injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
+        injector.instanceOf[Metrics] mustBe a[MetricsImpl]
+        injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
+      }
+    }
+
+    def haveDisabledNonLegacyMetrics(configuration : Configuration): Unit = {
+      val injector = buildInjectorWithMetrics(configuration)
+
+      "create new bindings with reporting disabled" in {
         injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
         injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
         injector.instanceOf[Metrics] mustBe a[DisabledMetrics]

@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit
 import com.typesafe.config.ConfigException
 import org.scalatest.{MustMatchers, WordSpec}
 import play.api.Configuration
-import play.api.inject.guice.GuiceApplicationBuilder
 
 class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
@@ -29,16 +28,12 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "return a valid `GraphiteReporterProviderConfig` when given a prefix" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure(
-          "appName" -> "testApp",
-          "metrics.graphite.prefix" -> "test"
-        )
-        .build()
-        .injector
+      val rootConfiguration = Configuration("appName" -> "testApp")
+
+      val metricsConfiguration = Configuration("graphite.prefix" -> "test")
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfiguration, metricsConfiguration)
 
       config.prefix mustEqual "test"
       config.rates mustBe None
@@ -47,32 +42,29 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "return a valid `GraphiteReporterProviderConfig` when given a prefix and optional config" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure(
-          "metrics.graphite.prefix" -> "test",
-          "metrics.graphite.durations" -> "SECONDS",
-          "metrics.graphite.rates" -> "SECONDS"
-        )
-        .build()
-        .injector
+      val rootConfiguration = Configuration()
+
+      val metricsConfiguration = Configuration(
+        "graphite.prefix" -> "test",
+        "graphite.durations" -> "SECONDS",
+        "graphite.rates" -> "SECONDS"
+      )
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfiguration, metricsConfiguration)
 
       config.prefix mustEqual "test"
       config.rates mustBe Some(TimeUnit.SECONDS)
       config.durations mustBe Some(TimeUnit.SECONDS)
     }
 
+
     "return a valid `GraphiteReporterProviderConfig` when given an appName" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure("appName" -> "testApp")
-        .build()
-        .injector
+      val rootConfiguration = Configuration("appName" -> "testApp")
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfiguration, Configuration())
 
       config.prefix mustEqual "tax.testApp"
       config.rates mustBe None
@@ -81,12 +73,10 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "throw a configuration exception when relevant keys are missing" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .build()
-        .injector
+      val rootConfiguration = Configuration()
 
       val exception = intercept[ConfigException.Generic] {
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfiguration, Configuration())
       }
 
       exception.getMessage mustEqual "`metrics.graphite.prefix` in config or `appName` as parameter required"
