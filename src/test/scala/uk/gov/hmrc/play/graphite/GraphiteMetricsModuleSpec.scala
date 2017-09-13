@@ -61,14 +61,15 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
 
       "setting `metrics.enabled` to true" must {
         behave like defaultBindings(
-          app.configure("metrics.enabled" -> "true")
+          app.configure("microservice.metrics.enabled" -> "true")
         )
       }
 
       "setting `metrics.enabled` to false" must {
 
+
         val injector = app.configure(
-          "metrics.enabled" -> "false"
+          "microservice.metrics.enabled" -> "false"
         ).build().injector
 
         injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
@@ -82,9 +83,9 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
         new GuiceApplicationBuilder()
           .bindings(new GraphiteMetricsModule)
           .configure(
-            "metrics.graphite.legacy" -> "false",
-            "metrics.graphite.host" -> "test",
-            "metrics.graphite.port" -> "9999",
+            "microservice.metrics.graphite.legacy" -> "false",
+            "microservice.metrics.graphite.host" -> "test",
+            "microservice.metrics.graphite.port" -> "9999",
             "appName" -> "test"
           )
 
@@ -111,14 +112,14 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
 
       "setting `metrics.enabled` to true" must {
         behave like defaultBindings(
-          app.configure("metrics.enabled" -> "true")
+          app.configure("microservice.metrics.enabled" -> "true")
         )
       }
 
       "setting `metrics.enabled` to false" in {
 
         val injector = app.configure(
-          "metrics.enabled" -> "false"
+          "microservice.metrics.enabled" -> "false"
         ).build().injector
 
         injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL

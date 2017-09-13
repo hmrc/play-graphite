@@ -32,7 +32,7 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
       val injector = new GuiceApplicationBuilder()
         .configure(
           "appName" -> "testApp",
-          "metrics.graphite.prefix" -> "test"
+          "microservice.metrics.graphite.prefix" -> "test"
         )
         .build()
         .injector
@@ -49,9 +49,9 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
       val injector = new GuiceApplicationBuilder()
         .configure(
-          "metrics.graphite.prefix" -> "test",
-          "metrics.graphite.durations" -> "SECONDS",
-          "metrics.graphite.rates" -> "SECONDS"
+          "microservice.metrics.graphite.prefix" -> "test",
+          "microservice.metrics.graphite.durations" -> "SECONDS",
+          "microservice.metrics.graphite.rates" -> "SECONDS"
         )
         .build()
         .injector
