@@ -32,7 +32,7 @@ object GraphiteProviderConfig {
 
   def fromConfig(config: Configuration): GraphiteProviderConfig = {
 
-    val graphite: Config  = config.underlying.getConfig("metrics.graphite")
+    val graphite: Config  = config.underlying.getConfig("microservice.metrics.graphite")
     val host: String      = graphite.getString("host")
     val port: Int         = graphite.getInt("port")
 
