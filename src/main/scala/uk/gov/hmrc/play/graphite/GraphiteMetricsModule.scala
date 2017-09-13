@@ -34,7 +34,7 @@ class GraphiteMetricsModule extends Module {
   }
 
   private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-    if (configuration.getBoolean("microservice.metrics.enabled").getOrElse(true)) {
+    if (metricsEnabled(configuration)) {
       Seq(
         bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
         bind[Metrics].to[GraphiteMetricsImpl].eagerly
@@ -49,15 +49,13 @@ class GraphiteMetricsModule extends Module {
 
   private def newBindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
 
-    val metricsEnabled: Boolean = configuration.getBoolean("microservice.metrics.enabled").getOrElse(true)
-
     val defaultBindings: Seq[Binding[_]] = Seq(
       // Note: `MetricFilter` rather than `MetricsFilter`
       bind[MetricFilter].toInstance(MetricFilter.ALL).eagerly
     )
 
     val metricsBindings: Seq[Binding[_]] =
-      if (metricsEnabled) {
+      if (metricsEnabled(configuration)) {
         Seq(
           bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
           bind[Metrics].to[MetricsImpl].eagerly,
@@ -77,5 +75,11 @@ class GraphiteMetricsModule extends Module {
       }
 
     defaultBindings ++ metricsBindings
+  }
+
+  private def metricsEnabled(configuration: Configuration) = {
+    val metricsPluginEnabled = configuration.getBoolean("metrics.enabled").getOrElse(false)
+    val graphitePublisherEnabled = configuration.getBoolean("microservice.metrics.graphite.enabled").getOrElse(false)
+    metricsPluginEnabled && graphitePublisherEnabled
   }
 }
