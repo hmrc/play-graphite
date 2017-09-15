@@ -34,7 +34,7 @@ class GraphiteMetricsModule extends Module {
   }
 
   private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-    if (metricsEnabled(configuration)) {
+    if (kenshoMetricsEnabled(configuration)) {
       Seq(
         bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
         bind[Metrics].to[GraphiteMetricsImpl].eagerly
@@ -54,32 +54,40 @@ class GraphiteMetricsModule extends Module {
       bind[MetricFilter].toInstance(MetricFilter.ALL).eagerly
     )
 
-    val metricsBindings: Seq[Binding[_]] =
-      if (metricsEnabled(configuration)) {
+
+    val kenshoBindings : Seq[Binding[_]] =
+      if (kenshoMetricsEnabled(configuration)) {
         Seq(
           bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
-          bind[Metrics].to[MetricsImpl].eagerly,
-
-          bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(configuration)),
-          bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration)),
-          bind[Graphite].toProvider[GraphiteProvider],
-          bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
-          bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
-        )
+          bind[Metrics].to[MetricsImpl].eagerly)
       } else {
         Seq(
           bind[MetricsFilter].to[DisabledMetricsFilter].eagerly,
-          bind[Metrics].to[DisabledMetrics].eagerly,
-          bind[GraphiteReporting].to[DisabledGraphiteReporting].eagerly
-        )
+          bind[Metrics].to[DisabledMetrics].eagerly)
       }
 
-    defaultBindings ++ metricsBindings
+    val graphiteBindings: Seq[Binding[_]] =
+      if (kenshoMetricsEnabled(configuration) && graphitePublisherEnabled(configuration)) {
+          Seq(
+            bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(configuration)),
+            bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration)),
+            bind[Graphite].toProvider[GraphiteProvider],
+            bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
+            bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
+          )
+        } else {
+          Seq(
+            bind[GraphiteReporting].to[DisabledGraphiteReporting].eagerly
+          )
+        }
+
+    defaultBindings ++ graphiteBindings ++ kenshoBindings
   }
 
-  private def metricsEnabled(configuration: Configuration) = {
-    val metricsPluginEnabled = configuration.getBoolean("metrics.enabled").getOrElse(false)
-    val graphitePublisherEnabled = configuration.getBoolean("microservice.metrics.graphite.enabled").getOrElse(false)
-    metricsPluginEnabled && graphitePublisherEnabled
-  }
+  private def kenshoMetricsEnabled(configuration: Configuration) =
+    configuration.getBoolean("metrics.enabled").getOrElse(false)
+
+  private def graphitePublisherEnabled(configuration: Configuration) =
+    configuration.getBoolean("microservice.metrics.graphite.enabled").getOrElse(false)
+
 }

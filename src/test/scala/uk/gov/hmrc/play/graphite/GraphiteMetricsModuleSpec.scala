@@ -16,12 +16,16 @@
 
 package uk.gov.hmrc.play.graphite
 
+import com.codahale.metrics.graphite.GraphiteReporter
 import com.codahale.metrics.{MetricFilter, SharedMetricRegistries}
 import com.kenshoo.play.metrics._
 import org.scalatest._
+import org.scalatest.prop.PropertyChecks
+import play.api.Configuration
+import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 
-class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAndAfterEach {
+class GraphiteMetricsModuleSpec extends FreeSpec with MustMatchers with BeforeAndAfterEach with PropertyChecks with GivenWhenThen {
 
   def app: GuiceApplicationBuilder =
     new GuiceApplicationBuilder()
@@ -32,150 +36,114 @@ class GraphiteMetricsModuleSpec extends WordSpec with MustMatchers with BeforeAn
     SharedMetricRegistries.clear()
   }
 
-  ".bindings" when {
+  def setupInjector(configuration: Configuration): Injector = {
+    new GuiceApplicationBuilder()
+      .bindings(new GraphiteMetricsModule)
+      .configure(configuration)
+      .build()
+      .injector
+  }
 
-    "`metrics.graphite.legacy` is true" must {
+  "if missing 'metrics.enabled'" in {
 
-      def app: GuiceApplicationBuilder =
-        new GuiceApplicationBuilder()
-          .bindings(new GraphiteMetricsModule)
+    SharedMetricRegistries.clear()
+    val injector: Injector = setupInjector(Configuration())
 
-      def verifyLegacyMetricsEnabled(builder: => GuiceApplicationBuilder): Unit = {
+    Then("kensho metrics are disabled")
+    injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
 
-        // NOTE: Even though this is being done in the `beforeEach` it doesn't
-        // seem to help with mixed in behaviours, so it must be here too.
-        SharedMetricRegistries.clear()
+  }
 
-        val injector = builder.build().injector
+  "if missing 'microservice.metrics.graphite.legacy' property " in {
 
-        "have default bindings" in {
+    SharedMetricRegistries.clear()
+    val injector: Injector = setupInjector(Configuration())
 
-          injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-          injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
-        }
-      }
+    Then("metrics are running in legacy mode")
+    a [RuntimeException] should be thrownBy injector.instanceOf[GraphiteReporter]
 
-      def verifyLegacyMetricsDisabled(builder: => GuiceApplicationBuilder): Unit = {
+  }
 
-        // NOTE: Even though this is being done in the `beforeEach` it doesn't
-        // seem to help with mixed in behaviours, so it must be here too.
-        SharedMetricRegistries.clear()
+  "non legacy" - {
 
-        val injector = builder.build().injector
+    "if missing kensho metrics enabled, but 'microservice.metrics.graphite.enabled' missing" in {
 
-        "have legacy metrics disabled" in {
-          injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
-          injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
-        }
-      }
+      SharedMetricRegistries.clear()
+      val injector: Injector = setupInjector(Configuration(
+        "metrics.enabled" -> "true",
+        "microservice.metrics.graphite.legacy" -> "false"
+      ))
 
-      "providing no configuration" must {
-        behave like verifyLegacyMetricsDisabled(app)
-      }
+      Then("kensho metrics are enabled")
+      injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
+      injector.instanceOf[Metrics] mustBe a[MetricsImpl]
 
-      "setting `metrics.enabled` to true and `microservice.metrics.graphite.enabled` to true" must {
-        behave like verifyLegacyMetricsEnabled(
-          app.configure("metrics.enabled" -> "true", "microservice.metrics.graphite.enabled" -> "true")
-        )
-      }
+      Then("graphite reporting in disabled")
+      injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
 
-      "setting `metrics.enabled` to false and `microservice.metrics.graphite.enabled` to false" must {
-        behave like verifyLegacyMetricsDisabled(
-          app.configure("metrics.enabled" -> "false", "microservice.metrics.graphite.enabled" -> "false")
-        )
-
-      }
-
-      "setting `metrics.enabled` to false and `microservice.metrics.graphite.enabled` to true" must {
-        behave like verifyLegacyMetricsDisabled(
-          app.configure("metrics.enabled" -> "false", "microservice.metrics.graphite.enabled" -> "true")
-        )
-      }
-
-      "setting `metrics.enabled` to true and `microservice.metrics.graphite.enabled` to false" must {
-        behave like verifyLegacyMetricsDisabled(
-          app.configure("metrics.enabled" -> "true", "microservice.metrics.graphite.enabled" -> "false")
-        )
-
-      }
     }
 
-    "`metrics.graphite.legacy` is false" must {
+  }
 
-      def app: GuiceApplicationBuilder =
-        new GuiceApplicationBuilder()
-          .bindings(new GraphiteMetricsModule)
-          .configure(
-            "microservice.metrics.graphite.legacy" -> "false",
+  "prorperty testing" in {
+
+    forAll { (legacy: Boolean, kenshooEnabled: Boolean, graphiteEnabled: Boolean) =>
+
+      SharedMetricRegistries.clear()
+
+      val configuration = Configuration(
+        "metrics.enabled" -> kenshooEnabled,
+        "microservice.metrics.graphite.legacy" -> legacy
+      ) ++
+        (if (graphiteEnabled) {
+          Configuration(
+            "microservice.metrics.graphite.enabled" -> true,
             "microservice.metrics.graphite.host" -> "test",
             "microservice.metrics.graphite.port" -> "9999",
             "appName" -> "test"
           )
+        } else {
+          Configuration("microservice.metrics.graphite.enabled" -> false)
+        })
 
-      def verifyNonLegacyMetricsEnabled(builder: => GuiceApplicationBuilder): Unit = {
+      val injector: Injector = setupInjector(configuration)
 
-        // NOTE: Even though this is being done in the `beforeEach` it doesn't
-        // seem to help with mixed in behaviours, so it must be here too.
-        SharedMetricRegistries.clear()
-
-        val injector = builder.build().injector
-
-        "have default bindings" in {
-
-          injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
-          injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-          injector.instanceOf[Metrics] mustBe a[MetricsImpl]
-          injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
-        }
+      if (kenshooEnabled) {
+        //enabled kenshoo metrics filter included
+        injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
       }
 
-      def verifyNonLegacyMetricsDisabled(app: => GuiceApplicationBuilder) = {
-        val injector = app.build().injector
-
-        injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
+      if (!kenshooEnabled) {
+        //disabled kenshoo metrics filter included
         injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
+
+        //there is a binding to graphite disabledMetrics
         injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
+      }
+
+      if (legacy) {
+        //no graphite reporter enabled
+        a [RuntimeException] should be thrownBy injector.instanceOf[GraphiteReporter]
+      }
+
+      //there is a binding to graphite's metricsimpl or graphitemetricsimpl
+      if (kenshooEnabled && legacy) {
+        injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
+      }
+
+      if (kenshooEnabled && !legacy) {
+          injector.instanceOf[Metrics] mustBe a[MetricsImpl]
+          injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
+      }
+
+      if (!legacy && kenshooEnabled && graphiteEnabled) {
+        //there is an enabled graphite reporter
+        injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
+      }
+
+      if (!legacy && (!kenshooEnabled || !graphiteEnabled)) {
+        //there is a disabled graphite reporter
         injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
-      }
-
-
-      "providing no configuration" must {
-        behave like verifyNonLegacyMetricsDisabled(app)
-      }
-
-      "setting `metrics.enabled` to true and `microservice.metrics.graphite.enabled` to true" must {
-        behave like verifyNonLegacyMetricsEnabled(
-          app.configure(
-            "metrics.enabled" -> "true",
-            "microservice.metrics.graphite.enabled" -> "true"
-          )
-        )
-      }
-
-      "setting `metrics.enabled` to false and `microservice.metrics.graphite.enabled` to true" in {
-        behave like verifyNonLegacyMetricsDisabled(app.configure(
-          "metrics.enabled" -> "false",
-          "microservice.metrics.graphite.enabled" -> "true"
-        ))
-      }
-
-      "setting `metrics.enabled` to true and `microservice.metrics.graphite.enabled` to false" in {
-        behave like verifyNonLegacyMetricsDisabled(app.configure(
-          "metrics.enabled" -> "true",
-          "microservice.metrics.graphite.enabled" -> "false"
-        ))
-      }
-
-      "setting `metrics.enabled` to true and `microservice.metrics.graphite.enabled` missing" in {
-        behave like verifyNonLegacyMetricsDisabled(app.configure(
-          "metrics.enabled" -> "true"
-        ))
-      }
-
-      "`metrics.enabled` missing and setting `microservice.metrics.graphite.enabled` to true" in {
-        behave like verifyNonLegacyMetricsDisabled(app.configure(
-          "microservice.metrics.graphite.enabled" -> "true"
-        ))
       }
 
     }
