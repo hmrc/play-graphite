@@ -64,89 +64,93 @@ class GraphiteMetricsModuleSpec extends FreeSpec with MustMatchers with BeforeAn
 
   }
 
-  "non legacy" - {
+  for (prefix <- Seq("", "Test.")) {
 
-    "if missing kensho metrics enabled, but 'microservice.metrics.graphite.enabled' missing" in {
+    "non legacy" - {
 
-      SharedMetricRegistries.clear()
-      val injector: Injector = setupInjector(Configuration(
-        "metrics.enabled" -> "true",
-        "microservice.metrics.graphite.legacy" -> "false"
-      ))
+      s"if missing kensho metrics enabled, but '${prefix}microservice.metrics.graphite.enabled' missing" in {
 
-      Then("kensho metrics are enabled")
-      injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-      injector.instanceOf[Metrics] mustBe a[MetricsImpl]
+        SharedMetricRegistries.clear()
+        val injector: Injector = setupInjector(Configuration(
+          s"${prefix}metrics.enabled" -> "true",
+          s"${prefix}microservice.metrics.graphite.legacy" -> "false"
+        ))
 
-      Then("graphite reporting in disabled")
-      injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
+        Then("kensho metrics are enabled")
+        injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
+        injector.instanceOf[Metrics] mustBe a[MetricsImpl]
+
+        Then("graphite reporting in disabled")
+        injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
+
+      }
 
     }
 
-  }
+    s"prorperty testing with prefix [$prefix]" in {
 
-  "prorperty testing" in {
+      forAll { (legacy: Boolean, kenshooEnabled: Boolean, graphiteEnabled: Boolean) =>
 
-    forAll { (legacy: Boolean, kenshooEnabled: Boolean, graphiteEnabled: Boolean) =>
+        SharedMetricRegistries.clear()
 
-      SharedMetricRegistries.clear()
+        val configuration = Configuration(
+          s"${prefix}metrics.enabled" -> kenshooEnabled,
+          s"${prefix}microservice.metrics.graphite.legacy" -> legacy
+        ) ++
+          (if (graphiteEnabled) {
+            Configuration(
+              s"${prefix}microservice.metrics.graphite.enabled" -> true,
+              s"${prefix}microservice.metrics.graphite.host" -> "test",
+              s"${prefix}microservice.metrics.graphite.port" -> "9999",
+              "appName" -> "test"
+            )
+          } else {
+            Configuration(s"${prefix}microservice.metrics.graphite.enabled" -> false)
+          })
 
-      val configuration = Configuration(
-        "metrics.enabled" -> kenshooEnabled,
-        "microservice.metrics.graphite.legacy" -> legacy
-      ) ++
-        (if (graphiteEnabled) {
-          Configuration(
-            "microservice.metrics.graphite.enabled" -> true,
-            "microservice.metrics.graphite.host" -> "test",
-            "microservice.metrics.graphite.port" -> "9999",
-            "appName" -> "test"
-          )
-        } else {
-          Configuration("microservice.metrics.graphite.enabled" -> false)
-        })
+        val injector: Injector = setupInjector(configuration)
 
-      val injector: Injector = setupInjector(configuration)
+        if (kenshooEnabled) {
+          //enabled kenshoo metrics filter included
+          injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
+        }
 
-      if (kenshooEnabled) {
-        //enabled kenshoo metrics filter included
-        injector.instanceOf[MetricsFilter] mustBe a[MetricsFilterImpl]
-      }
+        if (!kenshooEnabled) {
+          //disabled kenshoo metrics filter included
+          injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
 
-      if (!kenshooEnabled) {
-        //disabled kenshoo metrics filter included
-        injector.instanceOf[MetricsFilter] mustBe a[DisabledMetricsFilter]
+          //there is a binding to graphite disabledMetrics
+          injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
+        }
 
-        //there is a binding to graphite disabledMetrics
-        injector.instanceOf[Metrics] mustBe a[DisabledMetrics]
-      }
+        if (legacy) {
+          //no graphite reporter enabled
+          a[RuntimeException] should be thrownBy injector.instanceOf[GraphiteReporter]
+        }
 
-      if (legacy) {
-        //no graphite reporter enabled
-        a [RuntimeException] should be thrownBy injector.instanceOf[GraphiteReporter]
-      }
+        //there is a binding to graphite's metricsimpl or graphitemetricsimpl
+        if (kenshooEnabled && legacy) {
+          injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
+        }
 
-      //there is a binding to graphite's metricsimpl or graphitemetricsimpl
-      if (kenshooEnabled && legacy) {
-        injector.instanceOf[Metrics] mustBe a[GraphiteMetricsImpl]
-      }
-
-      if (kenshooEnabled && !legacy) {
+        if (kenshooEnabled && !legacy) {
           injector.instanceOf[Metrics] mustBe a[MetricsImpl]
           injector.instanceOf[MetricFilter] mustEqual MetricFilter.ALL
-      }
+        }
 
-      if (!legacy && kenshooEnabled && graphiteEnabled) {
-        //there is an enabled graphite reporter
-        injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
-      }
+        if (!legacy && kenshooEnabled && graphiteEnabled) {
+          //there is an enabled graphite reporter
+          injector.instanceOf[GraphiteReporting] mustBe a[EnabledGraphiteReporting]
+        }
 
-      if (!legacy && (!kenshooEnabled || !graphiteEnabled)) {
-        //there is a disabled graphite reporter
-        injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
-      }
+        if (!legacy && (!kenshooEnabled || !graphiteEnabled)) {
+          //there is a disabled graphite reporter
+          injector.instanceOf[GraphiteReporting] mustBe a[DisabledGraphiteReporting]
+        }
 
+      }
     }
+
   }
 
 }

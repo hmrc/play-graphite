@@ -21,19 +21,23 @@ import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.kenshoo.play.metrics._
 import play.api.inject.{Binding, Module}
 import play.api.{Configuration, Environment}
+import uk.gov.hmrc.play.config.ModeAwareConfiguration
+
 
 class GraphiteMetricsModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
 
-    if (configuration.getBoolean("microservice.metrics.graphite.legacy").getOrElse(true)) {
-      legacy(environment, configuration)
+    val modeAwareConfiguration = ModeAwareConfiguration(configuration, environment.mode)
+
+    if (modeAwareConfiguration.getBoolean("microservice.metrics.graphite.legacy").getOrElse(true)) {
+      legacy(modeAwareConfiguration)
     } else {
-      newBindings(environment, configuration)
+      newBindings(modeAwareConfiguration)
     }
   }
 
-  private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
+  private def legacy(configuration: Configuration): Seq[Binding[_]] = {
     if (kenshoMetricsEnabled(configuration)) {
       Seq(
         bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
@@ -47,7 +51,7 @@ class GraphiteMetricsModule extends Module {
     }
   }
 
-  private def newBindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
+  private def newBindings(configuration: Configuration): Seq[Binding[_]] = {
 
     val defaultBindings: Seq[Binding[_]] = Seq(
       // Note: `MetricFilter` rather than `MetricsFilter`
