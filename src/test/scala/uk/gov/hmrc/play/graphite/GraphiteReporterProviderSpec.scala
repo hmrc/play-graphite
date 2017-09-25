@@ -29,16 +29,15 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "return a valid `GraphiteReporterProviderConfig` when given a prefix" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure(
-          "appName" -> "testApp",
-          "microservice.metrics.graphite.prefix" -> "test"
-        )
-        .build()
-        .injector
+      val rootConfig = Configuration(
+        "appName" -> "testApp",
+        "microservice.metrics.graphite.prefix" -> "test"
+      )
+
+      val graphiteConfig = rootConfig.getConfig("microservice.metrics.graphite").get
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfig, graphiteConfig)
 
       config.prefix mustEqual "test"
       config.rates mustBe None
@@ -47,17 +46,15 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "return a valid `GraphiteReporterProviderConfig` when given a prefix and optional config" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure(
+      val rootConfig = Configuration(
           "microservice.metrics.graphite.prefix" -> "test",
           "microservice.metrics.graphite.durations" -> "SECONDS",
           "microservice.metrics.graphite.rates" -> "SECONDS"
         )
-        .build()
-        .injector
+      val graphiteConfig = rootConfig.getConfig("microservice.metrics.graphite").get
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfig, graphiteConfig)
 
       config.prefix mustEqual "test"
       config.rates mustBe Some(TimeUnit.SECONDS)
@@ -66,13 +63,11 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "return a valid `GraphiteReporterProviderConfig` when given an appName" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .configure("appName" -> "testApp")
-        .build()
-        .injector
+      val rootConfig = Configuration("appName" -> "testApp")
+      val graphiteConfig = Configuration()
 
       val config: GraphiteReporterProviderConfig =
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(rootConfig, graphiteConfig)
 
       config.prefix mustEqual "tax.testApp"
       config.rates mustBe None
@@ -81,12 +76,8 @@ class GraphiteReporterProviderSpec extends WordSpec with MustMatchers {
 
     "throw a configuration exception when relevant keys are missing" in {
 
-      val injector = new GuiceApplicationBuilder()
-        .build()
-        .injector
-
       val exception = intercept[ConfigException.Generic] {
-        GraphiteReporterProviderConfig.fromConfig(injector.instanceOf[Configuration])
+        GraphiteReporterProviderConfig.fromConfig(Configuration(), Configuration())
       }
 
       exception.getMessage mustEqual "`metrics.graphite.prefix` in config or `appName` as parameter required"

@@ -27,8 +27,8 @@ class GraphiteProviderSpec extends WordSpec with MustMatchers {
   "GraphiteProviderConfigSpec.fromConfig" must {
 
     val configuration: Map[String, String] = Map(
-      "microservice.metrics.graphite.host" -> "localhost",
-      "microservice.metrics.graphite.port" -> "9999"
+      "host" -> "localhost",
+      "port" -> "9999"
     )
 
     "return a valid `GraphiteProviderConfig`" in {

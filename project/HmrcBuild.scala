@@ -47,7 +47,7 @@ private object AppDependencies {
 
   val compile = Seq(
     "com.typesafe.play" %% "play" % PlayVersion.current,
-    "uk.gov.hmrc" %% "play-config" % "4.3.0-1-g5f30c99",
+    "uk.gov.hmrc" %% "play-config" % "4.3.0-3-gc657af1",
     "com.codahale.metrics" % "metrics-graphite" % "3.0.2",
     "de.threedimensions" %% "metrics-play" % "2.5.13"
   )
