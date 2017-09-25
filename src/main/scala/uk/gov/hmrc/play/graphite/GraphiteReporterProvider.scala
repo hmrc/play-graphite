@@ -33,13 +33,13 @@ case class GraphiteReporterProviderConfig(
 
 object GraphiteReporterProviderConfig {
 
-  def fromConfig(config: Configuration): GraphiteReporterProviderConfig = {
+  def fromConfig(config: Configuration, graphiteConfiguration : Configuration): GraphiteReporterProviderConfig = {
 
     val appName: Option[String]       = config.getString("appName")
-    val rates: Option[TimeUnit]       = config.getString("microservice.metrics.graphite.rates").map(TimeUnit.valueOf)
-    val durations: Option[TimeUnit]   = config.getString("microservice.metrics.graphite.durations").map(TimeUnit.valueOf)
+    val rates: Option[TimeUnit]       = graphiteConfiguration.getString("rates").map(TimeUnit.valueOf)
+    val durations: Option[TimeUnit]   = graphiteConfiguration.getString("durations").map(TimeUnit.valueOf)
 
-    val prefix: String = config.getString("microservice.metrics.graphite.prefix")
+    val prefix: String = graphiteConfiguration.getString("prefix")
       .orElse(appName.map(name => s"tax.$name"))
       .getOrElse(throw new ConfigException.Generic("`metrics.graphite.prefix` in config or `appName` as parameter required"))
 

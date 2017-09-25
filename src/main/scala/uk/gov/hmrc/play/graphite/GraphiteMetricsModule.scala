@@ -21,39 +21,15 @@ import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.kenshoo.play.metrics._
 import play.api.inject.{Binding, Module}
 import play.api.{Configuration, Environment}
+import uk.gov.hmrc.play.config.RunMode
 
 class GraphiteMetricsModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-
-    if (configuration.getBoolean("microservice.metrics.graphite.legacy").getOrElse(true)) {
-      legacy(environment, configuration)
-    } else {
-      newBindings(environment, configuration)
-    }
-  }
-
-  private def legacy(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-    if (kenshoMetricsEnabled(configuration)) {
-      Seq(
-        bind[MetricsFilter].to[MetricsFilterImpl].eagerly,
-        bind[Metrics].to[GraphiteMetricsImpl].eagerly
-      )
-    } else {
-      Seq(
-        bind[MetricsFilter].to[DisabledMetricsFilter].eagerly,
-        bind[Metrics].to[DisabledMetrics].eagerly
-      )
-    }
-  }
-
-  private def newBindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = {
-
     val defaultBindings: Seq[Binding[_]] = Seq(
       // Note: `MetricFilter` rather than `MetricsFilter`
       bind[MetricFilter].toInstance(MetricFilter.ALL).eagerly
     )
-
 
     val kenshoBindings : Seq[Binding[_]] =
       if (kenshoMetricsEnabled(configuration)) {
@@ -66,28 +42,36 @@ class GraphiteMetricsModule extends Module {
           bind[Metrics].to[DisabledMetrics].eagerly)
       }
 
+    val graphiteConfiguration = extractGraphiteConfiguration(environment, configuration)
+
     val graphiteBindings: Seq[Binding[_]] =
-      if (kenshoMetricsEnabled(configuration) && graphitePublisherEnabled(configuration)) {
-          Seq(
-            bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(configuration)),
-            bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration)),
-            bind[Graphite].toProvider[GraphiteProvider],
-            bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
-            bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
-          )
-        } else {
-          Seq(
-            bind[GraphiteReporting].to[DisabledGraphiteReporting].eagerly
-          )
-        }
+      if (kenshoMetricsEnabled(configuration) && graphitePublisherEnabled(graphiteConfiguration)) {
+        Seq(
+          bind[GraphiteProviderConfig].toInstance(GraphiteProviderConfig.fromConfig(graphiteConfiguration)),
+          bind[GraphiteReporterProviderConfig].toInstance(GraphiteReporterProviderConfig.fromConfig(configuration, graphiteConfiguration)),
+          bind[Graphite].toProvider[GraphiteProvider],
+          bind[GraphiteReporter].toProvider[GraphiteReporterProvider],
+          bind[GraphiteReporting].to[EnabledGraphiteReporting].eagerly
+        )
+      } else {
+        Seq(
+          bind[GraphiteReporting].to[DisabledGraphiteReporting].eagerly
+        )
+      }
 
     defaultBindings ++ graphiteBindings ++ kenshoBindings
   }
 
-  private def kenshoMetricsEnabled(configuration: Configuration) =
-    configuration.getBoolean("metrics.enabled").getOrElse(false)
+  private def kenshoMetricsEnabled(rootConfiguration: Configuration) =
+    rootConfiguration.getBoolean("metrics.enabled").getOrElse(false)
 
-  private def graphitePublisherEnabled(configuration: Configuration) =
-    configuration.getBoolean("microservice.metrics.graphite.enabled").getOrElse(false)
+  private def graphitePublisherEnabled(graphiteConfiguration: Configuration) =
+    graphiteConfiguration.getBoolean("enabled").getOrElse(false)
 
+  private def extractGraphiteConfiguration(environment: Environment, configuration: Configuration): Configuration = {
+    val env = RunMode(environment.mode, configuration).env
+    configuration.getConfig(s"$env.microservice.metrics.graphite")
+      .orElse(configuration.getConfig("microservice.metrics.graphite"))
+      .getOrElse(Configuration())
+  }
 }

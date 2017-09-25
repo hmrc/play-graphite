@@ -30,9 +30,9 @@ case class GraphiteProviderConfig(
 
 object GraphiteProviderConfig {
 
-  def fromConfig(config: Configuration): GraphiteProviderConfig = {
+  def fromConfig(graphiteConfiguration: Configuration): GraphiteProviderConfig = {
 
-    val graphite: Config  = config.underlying.getConfig("microservice.metrics.graphite")
+    val graphite: Config  = graphiteConfiguration.underlying
     val host: String      = graphite.getString("host")
     val port: Int         = graphite.getInt("port")
 
