@@ -16,17 +16,12 @@
 
 package uk.gov.hmrc.play.graphite
 
-import java.net.InetSocketAddress
-import javax.inject.{Inject, Provider}
-
 import com.codahale.metrics.graphite.Graphite
 import com.typesafe.config.Config
+import javax.inject.{Inject, Provider}
 import play.api.Configuration
 
-case class GraphiteProviderConfig(
-                                 host: String,
-                                 port: Int
-                                 )
+case class GraphiteProviderConfig(host: String, port: Int)
 
 object GraphiteProviderConfig {
 
@@ -40,11 +35,11 @@ object GraphiteProviderConfig {
   }
 }
 
-class GraphiteProvider @Inject() (
-                                   config: GraphiteProviderConfig
-                                 ) extends Provider[Graphite] {
+class GraphiteProvider @Inject()(
+  config: GraphiteProviderConfig
+) extends Provider[Graphite] {
 
   override def get(): Graphite = {
-    new Graphite(new InetSocketAddress(config.host, config.port))
+    new Graphite(config.host, config.port)
   }
 }
