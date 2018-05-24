@@ -61,7 +61,6 @@ private object AppDependencies {
     def apply() = new TestDependencies {
       override lazy val test = Seq(
         "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
-//        "org.scalatest" %% "scalatest" % "2.2.4" % scope,
         "org.scalatest" %% "scalatest" % "3.0.4" % scope,
         "org.scalacheck" % "scalacheck_2.11" % "1.13.5" % "test",
         "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1" % "test",
