@@ -17,8 +17,8 @@
 package uk.gov.hmrc.play.graphite
 
 
-import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit._
+
 import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 import com.codahale.metrics.{MetricFilter, SharedMetricRegistries}
 import play.api.{Application, Configuration, GlobalSettings, Logger}
@@ -54,9 +54,10 @@ trait GraphiteConfig extends GlobalSettings {
 
     val metricsConfig = microserviceMetricsConfig.getOrElse(throw new Exception("The application does not contain required metrics configuration"))
 
-    val graphite = new Graphite(new InetSocketAddress(
+    val graphite = new Graphite(
       metricsConfig.getString("graphite.host").getOrElse("graphite"),
-      metricsConfig.getInt("graphite.port").getOrElse(2003)))
+      metricsConfig.getInt("graphite.port").getOrElse(2003)
+    )
 
     val prefix = metricsConfig.getString("graphite.prefix").getOrElse(s"tax.${app.configuration.getString("appName")}")
 
