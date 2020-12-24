@@ -1,6 +1,7 @@
 play-graphite
 =============
 
+## This library is deprecated now. Please use [bootstrap-play](https://github.com/hmrc/bootstrap-play) to use features from this library
 
 A library that can hook to a Play Global object to start the Graphite reporter.
 
